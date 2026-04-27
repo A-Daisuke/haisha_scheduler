@@ -167,7 +167,7 @@ function renderDrivers() {
         <select id="d-time">${state.times.length ? timeOptions : '<option>先に時間を設定してください</option>'}</select>
       </div>
       <div class="field">
-        <label>乗せられる人数</label>
+        <label>乗せられる人数（運転手除く）</label>
         <div class="counter-row">
           <button class="cbtn" id="d-minus">−</button>
           <span class="cval">${driverForm.seats}</span>
@@ -188,7 +188,7 @@ function renderDrivers() {
             <div class="avatar av-driver">${getInitials(d.name)}</div>
             <div class="person-info">
               <div class="person-name">${d.name}<span class="badge bd-driver">運転者</span></div>
-              <div class="person-meta">${d.place}・${d.time}・${d.seats}人乗り</div>
+              <div class="person-meta">${d.place}・${d.time}・乗客${d.seats}名</div>
             </div>
             <button class="btn btn-danger btn-del-driver" data-index="${i}">削除</button>
           </div>
@@ -332,7 +332,7 @@ function renderResult() {
     return;
   }
 
-  const { placements, unmatched } = state.result;
+  const { placements, unmatchedRiders, unmatchedDrivers, standbyDrivers } = state.result;
   let html = '';
 
   placements.forEach(p => {
@@ -348,7 +348,7 @@ function renderResult() {
               <div class="driver-line">
                 <div class="car-icon">🚗</div>
                 <span class="driver-name">${d.name}</span>
-                <span class="driver-seats">${d.seats}人乗り</span>
+                <span class="driver-seats">乗客${d.seats}名まで</span>
               </div>
             `).join('')}
             ${p.riders.length ? `
@@ -370,12 +370,34 @@ function renderResult() {
     `;
   });
 
-  if (unmatched.length) {
+  if (unmatchedRiders && unmatchedRiders.length) {
     html += `
       <div class="unmatched-card">
-        <div class="unmatched-head">未配車（${unmatched.length}人）</div>
+        <div class="unmatched-head">未配車（条件不一致の乗客：${unmatchedRiders.length}人）</div>
         <div class="unmatched-body">
-          ${unmatched.map(r => `<span class="overflow-chip">${r.name}（${r.place}・${r.time}）</span>`).join('')}
+          ${unmatchedRiders.map(r => `<span class="overflow-chip">${r.name}（${r.place}・${r.time}）</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  if (standbyDrivers && standbyDrivers.length) {
+    html += `
+      <div class="unmatched-card" style="border-left-color: #3498db">
+        <div class="unmatched-head" style="color: #2980b9">待機中（余剰の運転者：${standbyDrivers.length}人）</div>
+        <div class="unmatched-body">
+          ${standbyDrivers.map(d => `<span class="overflow-chip" style="background:#ebf5fb;color:#2980b9;border:1px solid #aed6f1">${d.name}（${d.place}・${d.time}）</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  if (unmatchedDrivers && unmatchedDrivers.length) {
+    html += `
+      <div class="unmatched-card" style="border-left-color: #f39c12">
+        <div class="unmatched-head" style="color: #d35400">未配置（条件不一致の運転者：${unmatchedDrivers.length}人）</div>
+        <div class="unmatched-body">
+          ${unmatchedDrivers.map(d => `<span class="overflow-chip" style="background:#fef5e7;color:#d35400;border:1px solid #f8c471">${d.name}（${d.place}・${d.time}）</span>`).join('')}
         </div>
       </div>
     `;

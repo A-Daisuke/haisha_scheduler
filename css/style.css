@@ -614,3 +614,13 @@ textarea {
   font-weight: 400;
   color: #888;
 }
+
+.standby-badge {
+  font-size: 10px;
+  background: #eee;
+  color: #777;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  border: 1px solid #ddd;
+}
