@@ -1,7 +1,7 @@
 /**
  * UIレンダリングとインタラクション
  */
-import { state, driverForm, riderForm } from './state.js';
+import { state, driverForm, riderForm, saveState, clearAllData } from './state.js';
 import { calculateSchedule, formatResultAsText } from './scheduler.js';
 
 /**
@@ -96,6 +96,9 @@ function renderSetup() {
         <div class="stat-val">${state.riders.length}<span class="stat-unit"> 人</span></div>
       </div>
     </div>
+    <div style="margin-top: 20px; text-align: center;">
+      <button class="btn btn-danger" id="btn-clear-all" style="opacity: 0.6; font-size: 11px; padding: 4px 12px;">履歴をすべてリセットする</button>
+    </div>
   `;
 
   // イベントリスナーの紐付け
@@ -111,9 +114,12 @@ function renderSetup() {
       const idx = parseInt(btn.dataset.index);
       if (btn.dataset.type === 'place') state.places.splice(idx, 1);
       else state.times.splice(idx, 1);
+      saveState();
       renderSetup();
     };
   });
+  
+  container.querySelector('#btn-clear-all').onclick = clearAllData;
 }
 
 function addPlace() {
@@ -121,6 +127,7 @@ function addPlace() {
   if (v && !state.places.includes(v)) {
     state.places.push(v);
     state.newPlaceInput = '';
+    saveState();
     renderSetup();
   }
 }
@@ -130,6 +137,7 @@ function addTime() {
   if (v && !state.times.includes(v)) {
     state.times.push(v);
     state.newTimeInput = '';
+    saveState();
     renderSetup();
   }
 }
