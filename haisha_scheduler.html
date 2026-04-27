@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配車作成</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;min-height:100vh}
+.app{padding:16px;max-width:480px;margin:0 auto}
+.page-title{font-size:20px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.page-sub{font-size:13px;color:#666;margin-bottom:18px}
+.tab-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;background:#e8e8e8;border-radius:14px;padding:3px;margin-bottom:20px}
+.tab{padding:9px 2px;border:none;background:transparent;border-radius:10px;font-size:12px;font-weight:400;color:#666;cursor:pointer;transition:background .12s,color .12s;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.2}
+.tab-icon{font-size:15px}
+.tab.active{background:#fff;color:#1a1a1a;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card{background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:16px;margin-bottom:12px}
+.section-label{font-size:11px;font-weight:600;color:#999;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:22px}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:#f0f0f0;border:1px solid #e0e0e0;border-radius:20px;font-size:13px;color:#333}
+.tag-del{width:17px;height:17px;border-radius:50%;background:#ddd;border:none;cursor:pointer;font-size:12px;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tag-del:hover{background:#ccc}
+.input-row{display:flex;gap:8px}
+.input-row input{flex:1;height:40px;padding:0 12px;font-size:14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#1a1a1a;outline:none}
+.input-row input:focus{border-color:#4a90d9}
+.btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid #ddd;background:#fff;color:#1a1a1a;font-size:14px;cursor:pointer;font-weight:400;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:background .1s}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:#e8f0fb;color:#1a56b0;border-color:#b8d0f5;font-weight:600}
+.btn-primary:hover{background:#d6e8ff}
+.btn-danger{background:#fef2f2;color:#991b1b;border-color:#fecaca;height:32px;padding:0 10px;font-size:12px}
+.btn-danger:hover{background:#fee2e2}
+.btn-success{background:#f0fdf4;color:#166534;border-color:#bbf7d0;font-weight:600}
+.btn-success:hover{background:#dcfce7}
+.btn-full{width:100%;justify-content:center;margin-top:6px;height:44px;font-size:15px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:#666;margin-bottom:5px;font-weight:600}
+.field input,.field select{width:100%;height:40px;padding:0 12px;font-size:14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#1a1a1a;outline:none;appearance:none;-webkit-appearance:none}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.field input:focus,.field select:focus{border-color:#4a90d9}
+.toggle-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tog{padding:9px;border:1px solid #ddd;border-radius:10px;font-size:13px;cursor:pointer;background:#fff;color:#666;text-align:center;transition:all .12s;font-weight:400}
+.tog.on-normal{background:#e8f0fb;color:#1a56b0;border-color:#b8d0f5;font-weight:600}
+.tog.on-priority{background:#fffbeb;color:#92400e;border-color:#fde68a;font-weight:600}
+.counter-row{display:flex;align-items:center;gap:12px}
+.cbtn{width:34px;height:34px;border-radius:50%;border:1px solid #ddd;background:#fff;color:#1a1a1a;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.cbtn:hover{background:#f0f0f0}
+.cval{font-size:18px;font-weight:600;min-width:24px;text-align:center}
+.person-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.person-item:last-child{border-bottom:none}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.av-driver{background:#f0fdf4;color:#166534}
+.av-priority{background:#fffbeb;color:#92400e}
+.av-normal{background:#e8f0fb;color:#1a56b0}
+.person-info{flex:1;min-width:0}
+.person-name{font-size:14px;font-weight:600;color:#1a1a1a}
+.person-meta{font-size:12px;color:#888;margin-top:2px}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:600;margin-left:5px}
+.bd-driver{background:#f0fdf4;color:#166534}
+.bd-priority{background:#fffbeb;color:#92400e}
+.bd-normal{background:#e8f0fb;color:#1a56b0}
+.empty{text-align:center;padding:28px 0;color:#bbb;font-size:13px}
+.list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.list-header-title{font-size:13px;font-weight:600;color:#666}
+.count-badge{font-size:11px;background:#f0f0f0;padding:2px 8px;border-radius:8px;color:#666;border:1px solid #e5e5e5}
+.result-slot{margin-bottom:14px;border:1px solid #e5e5e5;border-radius:14px;overflow:hidden}
+.result-slot-head{padding:10px 14px;background:#f8f8f8;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.slot-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;background:#e8f0fb;color:#1a56b0;border:1px solid #b8d0f5}
+.result-slot-body{padding:12px 14px}
+.driver-line{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.car-icon{width:26px;height:26px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.driver-name{font-size:14px;font-weight:600;color:#1a1a1a}
+.driver-seats{font-size:12px;color:#888}
+.passenger-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.pax-chip{padding:4px 10px;border-radius:20px;font-size:12px;border:1px solid #e5e5e5;background:#fafafa;color:#333}
+.pax-chip.prio{background:#fffbeb;color:#92400e;border-color:#fde68a}
+.overflow-bar{border-top:1px solid #fecaca;padding:10px 14px;background:#fef2f2}
+.overflow-label{font-size:12px;font-weight:600;color:#991b1b;margin-bottom:6px}
+.overflow-chips{display:flex;flex-wrap:wrap;gap:5px}
+.overflow-chip{padding:3px 9px;border-radius:8px;font-size:12px;background:#fecaca;color:#991b1b;border:none}
+.no-driver-slot{background:#fafafa;padding:10px 14px;font-size:13px;color:#bbb}
+.unmatched-card{border:1px solid #fecaca;border-radius:14px;overflow:hidden;margin-bottom:14px}
+.unmatched-head{padding:10px 14px;background:#fef2f2;font-size:13px;font-weight:600;color:#991b1b}
+.unmatched-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px}
+.action-row{display:flex;gap:8px;margin-bottom:10px}
+textarea{width:100%;font-size:13px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;background:#f9f9f9;color:#1a1a1a;resize:none;line-height:1.6;margin-top:10px;outline:none}
+.summary-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{background:#f8f8f8;border-radius:10px;padding:12px 14px}
+.stat-label{font-size:11px;color:#999;margin-bottom:4px;font-weight:600}
+.stat-val{font-size:22px;font-weight:700;color:#1a1a1a}
+.stat-unit{font-size:13px;font-weight:400;color:#888}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page-title">🚗 配車作成</div>
+  <div class="page-sub">集合場所・時間を設定し、運転者と乗客を登録します</div>
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('setup')"><span class="tab-icon">⚙️</span>設定</button>
+    <button class="tab" onclick="switchTab('drivers')"><span class="tab-icon">🚗</span>運転者</button>
+    <button class="tab" onclick="switchTab('riders')"><span class="tab-icon">👤</span>乗客</button>
+    <button class="tab" onclick="switchTab('result')"><span class="tab-icon">📋</span>配車結果</button>
+  </div>
+  <div id="tab-setup"></div>
+  <div id="tab-drivers" style="display:none"></div>
+  <div id="tab-riders" style="display:none"></div>
+  <div id="tab-result" style="display:none"></div>
+</div>
+
+<script>
+const S={places:[],times:[],drivers:[],riders:[],np:'',nt:'',result:null};
+let dF={name:'',place:'',time:'',seats:3};
+let rF={name:'',place:'',time:'',priority:false};
+
+function switchTab(tab){
+  ['setup','drivers','riders','result'].forEach((t,i)=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
+    document.querySelectorAll('.tab')[i].classList.toggle('active',t===tab);
+  });
+  render();
+}
+
+function render(){
+  ['setup','drivers','riders','result'].forEach(t=>{
+    if(document.getElementById('tab-'+t).style.display!=='none')
+      window['render'+t.charAt(0).toUpperCase()+t.slice(1)]();
+  });
+}
+
+function renderSetup(){
+  document.getElementById('tab-setup').innerHTML=`
+  <div class="card">
+    <div class="section-label">集合場所</div>
+    <div class="tag-wrap">${S.places.map((p,i)=>`<span class="tag">${p}<button class="tag-del" onclick="S.places.splice(${i},1);renderSetup()">×</button></span>`).join('')||'<span style="font-size:13px;color:#bbb">未設定</span>'}</div>
+    <div class="input-row">
+      <input type="text" placeholder="例：駅前、公園..." value="${S.np}" oninput="S.np=this.value" onkeydown="if(event.key==='Enter')addPlace()">
+      <button class="btn btn-primary" onclick="addPlace()">追加</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-label">集合時間</div>
+    <div class="tag-wrap">${S.times.map((t,i)=>`<span class="tag">${t}<button class="tag-del" onclick="S.times.splice(${i},1);renderSetup()">×</button></span>`).join('')||'<span style="font-size:13px;color:#bbb">未設定</span>'}</div>
+    <div class="input-row">
+      <input type="text" placeholder="例：9:00、10:30..." value="${S.nt}" oninput="S.nt=this.value" onkeydown="if(event.key==='Enter')addTime()">
+      <button class="btn btn-primary" onclick="addTime()">追加</button>
+    </div>
+  </div>
+  <div class="summary-row">
+    <div class="stat"><div class="stat-label">運転者</div><div class="stat-val">${S.drivers.length}<span class="stat-unit"> 人</span></div></div>
+    <div class="stat"><div class="stat-label">乗客</div><div class="stat-val">${S.riders.length}<span class="stat-unit"> 人</span></div></div>
+  </div>`;
+}
+
+function addPlace(){const v=S.np.trim();if(v&&!S.places.includes(v)){S.places.push(v);S.np='';renderSetup();}}
+function addTime(){const v=S.nt.trim();if(v&&!S.times.includes(v)){S.times.push(v);S.nt='';renderSetup();}}
+
+function renderDrivers(){
+  if(!dF.place&&S.places.length)dF.place='どこでも';
+  if(!dF.time&&S.times.length)dF.time='いつでも';
+  const po=['どこでも',...S.places].map(p=>`<option value="${p}"${dF.place===p?' selected':''}>${p}</option>`).join('');
+  const to=['いつでも',...S.times].map(t=>`<option value="${t}"${dF.time===t?' selected':''}>${t}</option>`).join('');
+  document.getElementById('tab-drivers').innerHTML=`
+  <div class="card">
+    <div class="section-label">運転者を追加</div>
+    <div class="field"><label>名前</label><input type="text" placeholder="名前を入力" value="${dF.name}" oninput="dF.name=this.value"></div>
+    <div class="field"><label>集合場所</label><select onchange="dF.place=this.value">${S.places.length?po:'<option>先に場所を設定してください</option>'}</select></div>
+    <div class="field"><label>集合時間</label><select onchange="dF.time=this.value">${S.times.length?to:'<option>先に時間を設定してください</option>'}</select></div>
+    <div class="field"><label>乗せられる人数</label>
+      <div class="counter-row">
+        <button class="cbtn" onclick="dF.seats=Math.max(1,dF.seats-1);renderDrivers()">−</button>
+        <span class="cval">${dF.seats}</span>
+        <button class="cbtn" onclick="dF.seats=Math.min(15,dF.seats+1);renderDrivers()">+</button>
+        <span style="font-size:13px;color:#888">人</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addDriver()">登録する</button>
+  </div>
+  <div class="card">
+    <div class="list-header"><span class="list-header-title">登録済み運転者</span><span class="count-badge">${S.drivers.length}人</span></div>
+    ${S.drivers.length===0?'<div class="empty">まだ登録されていません</div>':
+    S.drivers.map((d,i)=>`<div class="person-item">
+      <div class="avatar av-driver">${initials(d.name)}</div>
+      <div class="person-info"><div class="person-name">${d.name}<span class="badge bd-driver">運転者</span></div>
+      <div class="person-meta">${d.place}・${d.time}・${d.seats}人乗り</div></div>
+      <button class="btn btn-danger" onclick="S.drivers.splice(${i},1);renderDrivers()">削除</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function addDriver(){
+  if(!dF.name.trim()){alert('名前を入力してください');return;}
+  if(!S.places.length){alert('先に集合場所を設定してください');return;}
+  if(!S.times.length){alert('先に集合時間を設定してください');return;}
+  S.drivers.push({...dF,name:dF.name.trim()});
+  dF.name='';renderDrivers();
+}
+
+function renderRiders(){
+  if(!rF.place&&S.places.length)rF.place=S.places[0];
+  if(!rF.time&&S.times.length)rF.time=S.times[0];
+  const po=S.places.map(p=>`<option value="${p}"${rF.place===p?' selected':''}>${p}</option>`).join('');
+  const to=S.times.map(t=>`<option value="${t}"${rF.time===t?' selected':''}>${t}</option>`).join('');
+  document.getElementById('tab-riders').innerHTML=`
+  <div class="card">
+    <div class="section-label">乗客を追加</div>
+    <div class="field"><label>名前</label><input type="text" placeholder="名前を入力" value="${rF.name}" oninput="rF.name=this.value"></div>
+    <div class="field"><label>集合場所</label><select onchange="rF.place=this.value">${S.places.length?po:'<option>先に場所を設定してください</option>'}</select></div>
+    <div class="field"><label>集合時間</label><select onchange="rF.time=this.value">${S.times.length?to:'<option>先に時間を設定してください</option>'}</select></div>
+    <div class="field"><label>グループ</label>
+      <div class="toggle-pair">
+        <div class="tog ${!rF.priority?'on-normal':''}" onclick="rF.priority=false;renderRiders()">通常</div>
+        <div class="tog ${rF.priority?'on-priority':''}" onclick="rF.priority=true;renderRiders()">優先</div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addRider()">登録する</button>
+  </div>
+  <div class="card">
+    <div class="list-header"><span class="list-header-title">登録済み乗客</span><span class="count-badge">${S.riders.length}人</span></div>
+    ${S.riders.length===0?'<div class="empty">まだ登録されていません</div>':
+    S.riders.map((r,i)=>`<div class="person-item">
+      <div class="avatar ${r.priority?'av-priority':'av-normal'}">${initials(r.name)}</div>
+      <div class="person-info"><div class="person-name">${r.name}<span class="badge ${r.priority?'bd-priority':'bd-normal'}">${r.priority?'優先':'通常'}</span></div>
+      <div class="person-meta">${r.place}・${r.time}</div></div>
+      <button class="btn btn-danger" onclick="S.riders.splice(${i},1);renderRiders()">削除</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function addRider(){
+  if(!rF.name.trim()){alert('名前を入力してください');return;}
+  if(!S.places.length){alert('先に集合場所を設定してください');return;}
+  if(!S.times.length){alert('先に集合時間を設定してください');return;}
+  S.riders.push({...rF,name:rF.name.trim()});
+  rF.name='';renderRiders();
+}
+
+function initials(name){return name.slice(0,2);}
+
+function calcResult(){
+  const assigned=new Set(),dAssigned=new Set(),placements=[];
+  const slots=[];
+  for(const pl of S.places)for(const ti of S.times)slots.push({place:pl,time:ti});
+  for(const slot of slots){
+    const sDrivers=S.drivers.filter(d=>{
+      if(dAssigned.has(d.name))return false;
+      return (d.place==='どこでも'||d.place===slot.place)&&(d.time==='いつでも'||d.time===slot.time);
+    });
+    const sRiders=S.riders.filter(r=>!assigned.has(r.name)&&r.place===slot.place&&r.time===slot.time);
+    if(!sDrivers.length&&!sRiders.length)continue;
+    let seats=0;const drivers=[];
+    for(const d of sDrivers){drivers.push(d);dAssigned.add(d.name);seats+=d.seats;}
+    const prio=sRiders.filter(r=>r.priority),norm=sRiders.filter(r=>!r.priority);
+    shuf(prio);shuf(norm);
+    const ordered=[...prio,...norm],riding=[],ovf=[];
+    for(const r of ordered){if(riding.length<seats){riding.push(r);assigned.add(r.name);}else ovf.push(r);}
+    placements.push({slot,drivers,riders:riding,overflow:ovf});
+  }
+  return{placements,unmatched:S.riders.filter(r=>!assigned.has(r.name))};
+}
+
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+
+function renderResult(){
+  const el=document.getElementById('tab-result');
+  if(!S.result){
+    el.innerHTML=`<div class="card"><div class="section-label">配車結果</div><div class="empty" style="padding:36px 0">運転者と乗客を登録してから<br>計算してください</div></div>
+    <button class="btn btn-primary btn-full" onclick="doCalc()">配車を計算する</button>`;
+    return;
+  }
+  const{placements,unmatched}=S.result;
+  let html='';
+  for(const p of placements){
+    html+=`<div class="result-slot"><div class="result-slot-head"><span class="slot-pill">${p.slot.place}</span><span class="slot-pill">${p.slot.time}</span></div>`;
+    if(!p.drivers.length){html+=`<div class="no-driver-slot">運転者なし</div>`;}
+    else{
+      html+=`<div class="result-slot-body">
+        ${p.drivers.map(d=>`<div class="driver-line"><div class="car-icon">🚗</div><span class="driver-name">${d.name}</span><span class="driver-seats">${d.seats}人乗り</span></div>`).join('')}
+        ${p.riders.length?`<div class="passenger-wrap">${p.riders.map(r=>`<span class="pax-chip ${r.priority?'prio':''}">${r.name}${r.priority?' ★':''}</span>`).join('')}</div>`:'<div style="font-size:13px;color:#bbb;margin-top:6px">乗客なし</div>'}
+      </div>`;
+      if(p.overflow.length)html+=`<div class="overflow-bar"><div class="overflow-label">乗り切れない（${p.overflow.length}人）</div><div class="overflow-chips">${p.overflow.map(r=>`<span class="overflow-chip">${r.name}</span>`).join('')}</div></div>`;
+    }
+    html+=`</div>`;
+  }
+  if(unmatched.length)html+=`<div class="unmatched-card"><div class="unmatched-head">未配車（${unmatched.length}人）</div><div class="unmatched-body">${unmatched.map(r=>`<span class="overflow-chip">${r.name}（${r.place}・${r.time}）</span>`).join('')}</div></div>`;
+  if(!html)html='<div class="empty">全員配車済みです</div>';
+  el.innerHTML=html+`
+  <div class="action-row">
+    <button class="btn btn-success" style="flex:1;justify-content:center" onclick="doCalc()">再計算</button>
+    <button class="btn" style="flex:1;justify-content:center" onclick="copyResult(event)">コピー</button>
+  </div>
+  <div id="copy-area" style="display:none"><textarea id="result-text" rows="10" readonly></textarea></div>`;
+}
+
+function doCalc(){
+  if(!S.drivers.length){alert('運転者を登録してください');return;}
+  if(!S.riders.length){alert('乗客を登録してください');return;}
+  S.result=calcResult();renderResult();
+}
+
+function copyResult(e){
+  if(!S.result)return;
+  const{placements,unmatched}=S.result;
+  let lines=['【配車結果】',''];
+  for(const p of placements){
+    if(!p.drivers.length)continue;
+    lines.push(`■ ${p.slot.place} / ${p.slot.time}`);
+    for(const d of p.drivers)lines.push(`  [車] ${d.name}（${d.seats}人乗り）`);
+    lines.push(`  乗客：${p.riders.length?p.riders.map(r=>r.name+(r.priority?'（優先）':'')).join('、'):'なし'}`);
+    if(p.overflow.length)lines.push(`  ※溢れ：${p.overflow.map(r=>r.name).join('、')}`);
+    lines.push('');
+  }
+  if(unmatched.length){lines.push('■ 未配車');lines.push(unmatched.map(r=>`  ${r.name}（${r.place}・${r.time}）`).join('\n'));}
+  const text=lines.join('\n');
+  const area=document.getElementById('copy-area'),ta=document.getElementById('result-text');
+  if(area&&ta){area.style.display='block';ta.value=text;ta.select();}
+  if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>{e.target.textContent='コピー完了';setTimeout(()=>e.target.textContent='コピー',2000);});
+}
+
+renderSetup();
+</script>
+</body>
+</html>
