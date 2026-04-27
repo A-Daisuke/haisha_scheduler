@@ -102,12 +102,21 @@ function renderSetup() {
   `;
 
   // イベントリスナーの紐付け
-  container.querySelector('#btn-add-place').onclick = addPlace;
-  container.querySelector('#btn-add-time').onclick = addTime;
-  container.querySelector('#input-place').oninput = (e) => state.newPlaceInput = e.target.value;
-  container.querySelector('#input-time').oninput = (e) => state.newTimeInput = e.target.value;
-  container.querySelector('#input-place').onkeydown = (e) => e.key === 'Enter' && addPlace();
-  container.querySelector('#input-time').onkeydown = (e) => e.key === 'Enter' && addTime();
+  const inputPlace = container.querySelector('#input-place');
+  const inputTime = container.querySelector('#input-time');
+
+  container.querySelector('#btn-add-place').onclick = () => {
+    addPlace(inputPlace.value);
+  };
+  container.querySelector('#btn-add-time').onclick = () => {
+    addTime(inputTime.value);
+  };
+  inputPlace.onkeydown = (e) => {
+    if (e.key === 'Enter') addPlace(inputPlace.value);
+  };
+  inputTime.onkeydown = (e) => {
+    if (e.key === 'Enter') addTime(inputTime.value);
+  };
   
   container.querySelectorAll('.tag-del').forEach(btn => {
     btn.onclick = () => {
@@ -122,21 +131,21 @@ function renderSetup() {
   container.querySelector('#btn-clear-all').onclick = clearAllData;
 }
 
-function addPlace() {
-  const v = state.newPlaceInput.trim();
+function addPlace(val) {
+  const v = val.trim();
   if (v && !state.places.includes(v)) {
     state.places.push(v);
-    state.newPlaceInput = '';
+    state.newPlaceInput = ''; // 状態もクリア
     saveState();
     renderSetup();
   }
 }
 
-function addTime() {
-  const v = state.newTimeInput.trim();
+function addTime(val) {
+  const v = val.trim();
   if (v && !state.times.includes(v)) {
     state.times.push(v);
-    state.newTimeInput = '';
+    state.newTimeInput = ''; // 状態もクリア
     saveState();
     renderSetup();
   }
@@ -206,7 +215,7 @@ function renderDrivers() {
   `;
 
   // イベントリスナー
-  container.querySelector('#d-name').oninput = (e) => driverForm.name = e.target.value;
+  const inputName = container.querySelector('#d-name');
   container.querySelector('#d-place').onchange = (e) => driverForm.place = e.target.value;
   container.querySelector('#d-time').onchange = (e) => driverForm.time = e.target.value;
   container.querySelector('#d-minus').onclick = () => {
@@ -217,7 +226,9 @@ function renderDrivers() {
     driverForm.seats = Math.min(15, driverForm.seats + 1);
     renderDrivers();
   };
-  container.querySelector('#btn-add-driver').onclick = addDriver;
+  container.querySelector('#btn-add-driver').onclick = () => addDriver(inputName.value);
+  inputName.onkeydown = (e) => e.key === 'Enter' && addDriver(inputName.value);
+
   container.querySelectorAll('.btn-del-driver').forEach(btn => {
     btn.onclick = () => {
       state.drivers.splice(parseInt(btn.dataset.index), 1);
@@ -226,13 +237,14 @@ function renderDrivers() {
   });
 }
 
-function addDriver() {
-  if (!driverForm.name.trim()) { alert('名前を入力してください'); return; }
+function addDriver(val) {
+  const name = val.trim();
+  if (!name) { alert('名前を入力してください'); return; }
   if (!state.places.length) { alert('先に集合場所を設定してください'); return; }
-  if (!state.times.length) { alert('先に集合時間を設定してください'); return; }
+  if (!state.times.length) { alert('先に集合時間をしてください'); return; }
   
-  state.drivers.push({ ...driverForm, name: driverForm.name.trim() });
-  driverForm.name = '';
+  state.drivers.push({ ...driverForm, name: name });
+  driverForm.name = ''; // フォームの値をクリア
   renderDrivers();
 }
 
@@ -298,12 +310,14 @@ function renderRiders() {
   `;
 
   // イベントリスナー
-  container.querySelector('#r-name').oninput = (e) => riderForm.name = e.target.value;
+  const inputName = container.querySelector('#r-name');
   container.querySelector('#r-place').onchange = (e) => riderForm.place = e.target.value;
   container.querySelector('#r-time').onchange = (e) => riderForm.time = e.target.value;
   container.querySelector('#r-tog-normal').onclick = () => { riderForm.priority = false; renderRiders(); };
   container.querySelector('#r-tog-priority').onclick = () => { riderForm.priority = true; renderRiders(); };
-  container.querySelector('#btn-add-rider').onclick = addRider;
+  container.querySelector('#btn-add-rider').onclick = () => addRider(inputName.value);
+  inputName.onkeydown = (e) => e.key === 'Enter' && addRider(inputName.value);
+
   container.querySelectorAll('.btn-del-rider').forEach(btn => {
     btn.onclick = () => {
       state.riders.splice(parseInt(btn.dataset.index), 1);
@@ -312,13 +326,14 @@ function renderRiders() {
   });
 }
 
-function addRider() {
-  if (!riderForm.name.trim()) { alert('名前を入力してください'); return; }
+function addRider(val) {
+  const name = val.trim();
+  if (!name) { alert('名前を入力してください'); return; }
   if (!state.places.length) { alert('先に集合場所を設定してください'); return; }
   if (!state.times.length) { alert('先に集合時間を設定してください'); return; }
   
-  state.riders.push({ ...riderForm, name: riderForm.name.trim() });
-  riderForm.name = '';
+  state.riders.push({ ...riderForm, name: name });
+  riderForm.name = ''; // フォームの値をクリア
   renderRiders();
 }
 
