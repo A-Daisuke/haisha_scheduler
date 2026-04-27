@@ -155,23 +155,23 @@ function shuffleArray(array) {
 export function formatResultAsText(result) {
   if (!result) return '';
   const { placements, unmatchedRiders, unmatchedDrivers, standbyDrivers } = result;
-  let lines = ['【配車結果】', ''];
+  let lines = [];
 
   for (const p of placements) {
     lines.push(`■ ${p.slot.place} / ${p.slot.time}`);
     
     if (p.drivers.length > 0) {
       for (const d of p.drivers) {
-        lines.push(`  [車] ${d.name}（乗客${d.seats}名まで）`);
+        lines.push(`  [車] ${d.name}（${d.seats}名まで）`);
       }
     } else {
       lines.push('  [車] なし');
     }
 
     const riderList = p.riders.length 
-      ? p.riders.map(r => r.name + (r.priority ? '（優先）' : '')).join('、')
+      ? p.riders.map(r => r.name + (r.priority ? '' : '')).join('、')
       : 'なし';
-    lines.push(`  乗客：${riderList}`);
+    lines.push(`  乗る人：${riderList}`);
 
     if (p.overflow.length > 0) {
       lines.push(`  ※溢れ：${p.overflow.map(r => r.name).join('、')}`);
@@ -180,13 +180,13 @@ export function formatResultAsText(result) {
   }
 
   if (unmatchedRiders.length > 0) {
-    lines.push('■ 未配車（条件不一致の乗客）');
+    lines.push('■ 未配車（条件不一致の乗る人）');
     lines.push(unmatchedRiders.map(r => `  ${r.name}（${r.place}・${r.time}）`).join('\n'));
     lines.push('');
   }
 
   if (standbyDrivers.length > 0) {
-    lines.push('■ 待機中の運転手（余剰）');
+    lines.push('■ 空きの運転手');
     lines.push(standbyDrivers.map(d => `  ${d.name}（${d.place}・${d.time}）`).join('\n'));
     lines.push('');
   }

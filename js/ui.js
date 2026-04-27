@@ -92,7 +92,7 @@ function renderSetup() {
         <div class="stat-val">${state.drivers.length}<span class="stat-unit"> 人</span></div>
       </div>
       <div class="stat">
-        <div class="stat-label">乗客</div>
+        <div class="stat-label">乗る人</div>
         <div class="stat-val">${state.riders.length}<span class="stat-unit"> 人</span></div>
       </div>
     </div>
@@ -196,7 +196,7 @@ function renderDrivers() {
             <div class="avatar av-driver">${getInitials(d.name)}</div>
             <div class="person-info">
               <div class="person-name">${d.name}<span class="badge bd-driver">運転者</span></div>
-              <div class="person-meta">${d.place}・${d.time}・乗客${d.seats}名</div>
+              <div class="person-meta">${d.place}・${d.time}・${d.seats}名まで</div>
             </div>
             <button class="btn btn-danger btn-del-driver" data-index="${i}">削除</button>
           </div>
@@ -255,7 +255,7 @@ function renderRiders() {
 
   container.innerHTML = `
     <div class="card">
-      <div class="section-label">乗客を追加</div>
+      <div class="section-label">乗る人を追加</div>
       <div class="field">
         <label>名前</label>
         <input type="text" id="r-name" placeholder="名前を入力" value="${riderForm.name}">
@@ -279,7 +279,7 @@ function renderRiders() {
     </div>
     <div class="card">
       <div class="list-header">
-        <span class="list-header-title">登録済み乗客</span>
+        <span class="list-header-title">登録済みの乗る人</span>
         <span class="count-badge">${state.riders.length}人</span>
       </div>
       ${state.riders.length === 0 ? '<div class="empty">まだ登録されていません</div>' : 
@@ -332,7 +332,7 @@ function renderResult() {
     container.innerHTML = `
       <div class="card">
         <div class="section-label">配車結果</div>
-        <div class="empty" style="padding:36px 0">運転者と乗客を登録してから<br>計算してください</div>
+        <div class="empty" style="padding:36px 0">運転者と乗る人を登録してから<br>計算してください</div>
       </div>
       <button class="btn btn-primary btn-full" id="btn-calc">配車を計算する</button>
     `;
@@ -356,18 +356,18 @@ function renderResult() {
               <div class="driver-line">
                 <div class="car-icon">🚗</div>
                 <span class="driver-name">${d.name}</span>
-                <span class="driver-seats">乗客${d.seats}名まで</span>
+                <span class="driver-seats">${d.seats}名まで</span>
               </div>
             `).join('')}
             ${p.riders.length ? `
               <div class="passenger-wrap">
                 ${p.riders.map(r => `<span class="pax-chip ${r.priority ? 'prio' : ''}">${r.name}${r.priority ? ' ★' : ''}</span>`).join('')}
               </div>
-            ` : '<div style="font-size:13px;color:#bbb;margin-top:6px">乗客なし</div>'}
+            ` : '<div style="font-size:13px;color:#bbb;margin-top:6px">乗る人はいません</div>'}
           </div>
           ${p.overflow.length ? `
             <div class="overflow-bar">
-              <div class="overflow-label">乗り切れない（${p.overflow.length}人）</div>
+              <div class="overflow-label">乗り切れない人（${p.overflow.length}人）</div>
               <div class="overflow-chips">
                 ${p.overflow.map(r => `<span class="overflow-chip">${r.name}</span>`).join('')}
               </div>
@@ -381,7 +381,7 @@ function renderResult() {
   if (unmatchedRiders && unmatchedRiders.length) {
     html += `
       <div class="unmatched-card">
-        <div class="unmatched-head">未配車（条件不一致の乗客：${unmatchedRiders.length}人）</div>
+        <div class="unmatched-head">未配車（条件不一致の乗る人：${unmatchedRiders.length}人）</div>
         <div class="unmatched-body">
           ${unmatchedRiders.map(r => `<span class="overflow-chip">${r.name}（${r.place}・${r.time}）</span>`).join('')}
         </div>
@@ -392,7 +392,7 @@ function renderResult() {
   if (standbyDrivers && standbyDrivers.length) {
     html += `
       <div class="unmatched-card" style="border-left-color: #3498db">
-        <div class="unmatched-head" style="color: #2980b9">待機中（余剰の運転者：${standbyDrivers.length}人）</div>
+        <div class="unmatched-head" style="color: #2980b9">空きの運転者：${standbyDrivers.length}人</div>
         <div class="unmatched-body">
           ${standbyDrivers.map(d => `<span class="overflow-chip" style="background:#ebf5fb;color:#2980b9;border:1px solid #aed6f1">${d.name}（${d.place}・${d.time}）</span>`).join('')}
         </div>
@@ -430,7 +430,7 @@ function renderResult() {
 
 function doCalc() {
   if (!state.drivers.length) { alert('運転者を登録してください'); return; }
-  if (!state.riders.length) { alert('乗客を登録してください'); return; }
+  if (!state.riders.length) { alert('乗る人を登録してください'); return; }
   
   state.result = calculateSchedule(state);
   renderResult();
