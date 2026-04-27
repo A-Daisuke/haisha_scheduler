@@ -22,7 +22,7 @@ export const driverForm = {
   name: '',
   place: '',
   time: '',
-  seats: 4 // 運転手を除いた、乗客が乗れる人数
+  seats: 3 // 運転手を除いた、乗客が乗れる人数
 };
 
 export const riderForm = {
