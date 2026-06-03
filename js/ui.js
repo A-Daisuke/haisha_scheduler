@@ -2,7 +2,16 @@
  * UIレンダリングとインタラクション
  */
 import { state, driverForm, riderForm, saveState, clearAllData } from './state.js';
-import { calculateSchedule, formatResultAsText } from './scheduler.js';
+import { calculateSchedule, formatResultAsText, moveRider } from './scheduler.js';
+
+// 編集モード用UI状態
+let driverEditIndex = -1;
+let riderEditIndex = -1;
+let driverFormError = '';
+let riderFormError = '';
+
+// ドラッグ&ドロップ用
+let dragSource = null;
 
 /**
  * タブを切り替える
@@ -10,15 +19,15 @@ import { calculateSchedule, formatResultAsText } from './scheduler.js';
 export function switchTab(tabId) {
   state.activeTab = tabId;
   const tabs = ['setup', 'drivers', 'riders', 'result'];
-  
+
   tabs.forEach((t, i) => {
     const el = document.getElementById(`tab-${t}`);
     if (el) el.style.display = t === tabId ? 'block' : 'none';
-    
+
     const tabBtn = document.querySelectorAll('.tab')[i];
     if (tabBtn) tabBtn.classList.toggle('active', t === tabId);
   });
-  
+
   render();
 }
 
@@ -27,26 +36,29 @@ export function switchTab(tabId) {
  */
 export function render() {
   switch (state.activeTab) {
-    case 'setup':
-      renderSetup();
-      break;
-    case 'drivers':
-      renderDrivers();
-      break;
-    case 'riders':
-      renderRiders();
-      break;
-    case 'result':
-      renderResult();
-      break;
+    case 'setup':   renderSetup();   break;
+    case 'drivers': renderDrivers(); break;
+    case 'riders':  renderRiders();  break;
+    case 'result':  renderResult();  break;
   }
 }
 
-/**
- * 名前からイニシャルを取得
- */
 function getInitials(name) {
   return name ? name.slice(0, 2) : '??';
+}
+
+function showToast(message, isError = false) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.className = isError ? 'error' : '';
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 // --- Setup Tab ---
@@ -101,23 +113,14 @@ function renderSetup() {
     </div>
   `;
 
-  // イベントリスナーの紐付け
   const inputPlace = container.querySelector('#input-place');
-  const inputTime = container.querySelector('#input-time');
+  const inputTime  = container.querySelector('#input-time');
 
-  container.querySelector('#btn-add-place').onclick = () => {
-    addPlace(inputPlace.value);
-  };
-  container.querySelector('#btn-add-time').onclick = () => {
-    addTime(inputTime.value);
-  };
-  inputPlace.onkeydown = (e) => {
-    if (e.key === 'Enter') addPlace(inputPlace.value);
-  };
-  inputTime.onkeydown = (e) => {
-    if (e.key === 'Enter') addTime(inputTime.value);
-  };
-  
+  container.querySelector('#btn-add-place').onclick = () => addPlace(inputPlace.value);
+  container.querySelector('#btn-add-time').onclick  = () => addTime(inputTime.value);
+  inputPlace.onkeydown = (e) => { if (e.key === 'Enter') addPlace(inputPlace.value); };
+  inputTime.onkeydown  = (e) => { if (e.key === 'Enter') addTime(inputTime.value); };
+
   container.querySelectorAll('.tag-del').forEach(btn => {
     btn.onclick = () => {
       const idx = parseInt(btn.dataset.index);
@@ -127,7 +130,7 @@ function renderSetup() {
       renderSetup();
     };
   });
-  
+
   container.querySelector('#btn-clear-all').onclick = clearAllData;
 }
 
@@ -135,7 +138,7 @@ function addPlace(val) {
   const v = val.trim();
   if (v && !state.places.includes(v)) {
     state.places.push(v);
-    state.newPlaceInput = ''; // 状態もクリア
+    state.newPlaceInput = '';
     saveState();
     renderSetup();
   }
@@ -145,7 +148,7 @@ function addTime(val) {
   const v = val.trim();
   if (v && !state.times.includes(v)) {
     state.times.push(v);
-    state.newTimeInput = ''; // 状態もクリア
+    state.newTimeInput = '';
     saveState();
     renderSetup();
   }
@@ -158,19 +161,21 @@ function renderDrivers() {
   if (!container) return;
 
   if (!driverForm.place && state.places.length) driverForm.place = 'どこでも';
-  if (!driverForm.time && state.times.length) driverForm.time = 'いつでも';
+  if (!driverForm.time  && state.times.length)  driverForm.time  = 'いつでも';
 
-  const placeOptions = ['どこでも', ...state.places].map(p => 
+  const placeOptions = ['どこでも', ...state.places].map(p =>
     `<option value="${p}" ${driverForm.place === p ? 'selected' : ''}>${p}</option>`
   ).join('');
 
-  const timeOptions = ['いつでも', ...state.times].map(t => 
+  const timeOptions = ['いつでも', ...state.times].map(t =>
     `<option value="${t}" ${driverForm.time === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
+  const isEditing = driverEditIndex >= 0;
+
   container.innerHTML = `
     <div class="card">
-      <div class="section-label">運転者を追加</div>
+      <div class="section-label">${isEditing ? '運転者を編集' : '運転者を追加'}</div>
       <div class="field">
         <label>名前</label>
         <input type="text" id="d-name" placeholder="名前を入力" value="${driverForm.name}">
@@ -192,32 +197,36 @@ function renderDrivers() {
           <span style="font-size:13px;color:#888">人</span>
         </div>
       </div>
-      <button class="btn btn-primary btn-full" id="btn-add-driver">登録する</button>
+      ${driverFormError ? `<div class="form-error">${driverFormError}</div>` : ''}
+      <button class="btn btn-primary btn-full" id="btn-add-driver">${isEditing ? '更新する' : '登録する'}</button>
+      ${isEditing ? `<button class="btn btn-full" id="btn-cancel-driver" style="margin-top:6px">キャンセル</button>` : ''}
     </div>
     <div class="card">
       <div class="list-header">
         <span class="list-header-title">登録済み運転者</span>
         <span class="count-badge">${state.drivers.length}人</span>
       </div>
-      ${state.drivers.length === 0 ? '<div class="empty">まだ登録されていません</div>' : 
+      ${state.drivers.length === 0 ? '<div class="empty">まだ登録されていません</div>' :
         state.drivers.map((d, i) => `
-          <div class="person-item">
+          <div class="person-item ${i === driverEditIndex ? 'item-editing' : ''}">
             <div class="avatar av-driver">${getInitials(d.name)}</div>
             <div class="person-info">
               <div class="person-name">${d.name}<span class="badge bd-driver">運転者</span></div>
               <div class="person-meta">${d.place}・${d.time}・${d.seats}名まで</div>
             </div>
-            <button class="btn btn-danger btn-del-driver" data-index="${i}">削除</button>
+            <div class="item-actions">
+              <button class="btn btn-edit btn-edit-driver" data-index="${i}">編集</button>
+              <button class="btn btn-danger btn-del-driver" data-index="${i}">削除</button>
+            </div>
           </div>
         `).join('')
       }
     </div>
   `;
 
-  // イベントリスナー
   const inputName = container.querySelector('#d-name');
-  container.querySelector('#d-place').onchange = (e) => driverForm.place = e.target.value;
-  container.querySelector('#d-time').onchange = (e) => driverForm.time = e.target.value;
+  container.querySelector('#d-place').onchange = (e) => { driverForm.place = e.target.value; };
+  container.querySelector('#d-time').onchange  = (e) => { driverForm.time  = e.target.value; };
   container.querySelector('#d-minus').onclick = () => {
     driverForm.seats = Math.max(1, driverForm.seats - 1);
     renderDrivers();
@@ -227,11 +236,41 @@ function renderDrivers() {
     renderDrivers();
   };
   container.querySelector('#btn-add-driver').onclick = () => addDriver(inputName.value);
-  inputName.onkeydown = (e) => e.key === 'Enter' && addDriver(inputName.value);
+  inputName.onkeydown = (e) => { if (e.key === 'Enter') addDriver(inputName.value); };
+
+  if (isEditing) {
+    container.querySelector('#btn-cancel-driver').onclick = () => {
+      driverEditIndex = -1;
+      driverFormError = '';
+      driverForm.name = '';
+      renderDrivers();
+    };
+  }
+
+  container.querySelectorAll('.btn-edit-driver').forEach(btn => {
+    btn.onclick = () => {
+      const i = parseInt(btn.dataset.index);
+      const d = state.drivers[i];
+      driverEditIndex = i;
+      driverFormError = '';
+      driverForm.name  = d.name;
+      driverForm.place = d.place;
+      driverForm.time  = d.time;
+      driverForm.seats = d.seats;
+      renderDrivers();
+      container.querySelector('#d-name').focus();
+    };
+  });
 
   container.querySelectorAll('.btn-del-driver').forEach(btn => {
     btn.onclick = () => {
-      state.drivers.splice(parseInt(btn.dataset.index), 1);
+      const i = parseInt(btn.dataset.index);
+      if (driverEditIndex === i) {
+        driverEditIndex = -1;
+        driverFormError = '';
+        driverForm.name = '';
+      }
+      state.drivers.splice(i, 1);
       renderDrivers();
     };
   });
@@ -239,12 +278,31 @@ function renderDrivers() {
 
 function addDriver(val) {
   const name = val.trim();
-  if (!name) { alert('名前を入力してください'); return; }
-  if (!state.places.length) { alert('先に集合場所を設定してください'); return; }
-  if (!state.times.length) { alert('先に集合時間をしてください'); return; }
-  
-  state.drivers.push({ ...driverForm, name: name });
-  driverForm.name = ''; // フォームの値をクリア
+  if (!name) {
+    driverFormError = '名前を入力してください';
+    renderDrivers();
+    return;
+  }
+  if (!state.places.length) {
+    driverFormError = '先に集合場所を設定してください';
+    renderDrivers();
+    return;
+  }
+  if (!state.times.length) {
+    driverFormError = '先に集合時間を設定してください';
+    renderDrivers();
+    return;
+  }
+
+  driverFormError = '';
+  const entry = { ...driverForm, name };
+  if (driverEditIndex >= 0) {
+    state.drivers[driverEditIndex] = entry;
+    driverEditIndex = -1;
+  } else {
+    state.drivers.push(entry);
+  }
+  driverForm.name = '';
   renderDrivers();
 }
 
@@ -255,19 +313,21 @@ function renderRiders() {
   if (!container) return;
 
   if (!riderForm.place && state.places.length) riderForm.place = state.places[0];
-  if (!riderForm.time && state.times.length) riderForm.time = state.times[0];
+  if (!riderForm.time  && state.times.length)  riderForm.time  = state.times[0];
 
-  const placeOptions = state.places.map(p => 
+  const placeOptions = state.places.map(p =>
     `<option value="${p}" ${riderForm.place === p ? 'selected' : ''}>${p}</option>`
   ).join('');
 
-  const timeOptions = state.times.map(t => 
+  const timeOptions = state.times.map(t =>
     `<option value="${t}" ${riderForm.time === t ? 'selected' : ''}>${t}</option>`
   ).join('');
 
+  const isEditing = riderEditIndex >= 0;
+
   container.innerHTML = `
     <div class="card">
-      <div class="section-label">乗る人を追加</div>
+      <div class="section-label">${isEditing ? '乗る人を編集' : '乗る人を追加'}</div>
       <div class="field">
         <label>名前</label>
         <input type="text" id="r-name" placeholder="名前を入力" value="${riderForm.name}">
@@ -287,40 +347,74 @@ function renderRiders() {
           <div class="tog ${riderForm.priority ? 'on-priority' : ''}" id="r-tog-priority">優先</div>
         </div>
       </div>
-      <button class="btn btn-primary btn-full" id="btn-add-rider">登録する</button>
+      ${riderFormError ? `<div class="form-error">${riderFormError}</div>` : ''}
+      <button class="btn btn-primary btn-full" id="btn-add-rider">${isEditing ? '更新する' : '登録する'}</button>
+      ${isEditing ? `<button class="btn btn-full" id="btn-cancel-rider" style="margin-top:6px">キャンセル</button>` : ''}
     </div>
     <div class="card">
       <div class="list-header">
         <span class="list-header-title">登録済みの乗る人</span>
         <span class="count-badge">${state.riders.length}人</span>
       </div>
-      ${state.riders.length === 0 ? '<div class="empty">まだ登録されていません</div>' : 
+      ${state.riders.length === 0 ? '<div class="empty">まだ登録されていません</div>' :
         state.riders.map((r, i) => `
-          <div class="person-item">
+          <div class="person-item ${i === riderEditIndex ? 'item-editing' : ''}">
             <div class="avatar ${r.priority ? 'av-priority' : 'av-normal'}">${getInitials(r.name)}</div>
             <div class="person-info">
               <div class="person-name">${r.name}<span class="badge ${r.priority ? 'bd-priority' : 'bd-normal'}">${r.priority ? '優先' : '通常'}</span></div>
               <div class="person-meta">${r.place}・${r.time}</div>
             </div>
-            <button class="btn btn-danger btn-del-rider" data-index="${i}">削除</button>
+            <div class="item-actions">
+              <button class="btn btn-edit btn-edit-rider" data-index="${i}">編集</button>
+              <button class="btn btn-danger btn-del-rider" data-index="${i}">削除</button>
+            </div>
           </div>
         `).join('')
       }
     </div>
   `;
 
-  // イベントリスナー
   const inputName = container.querySelector('#r-name');
-  container.querySelector('#r-place').onchange = (e) => riderForm.place = e.target.value;
-  container.querySelector('#r-time').onchange = (e) => riderForm.time = e.target.value;
-  container.querySelector('#r-tog-normal').onclick = () => { riderForm.priority = false; renderRiders(); };
-  container.querySelector('#r-tog-priority').onclick = () => { riderForm.priority = true; renderRiders(); };
+  container.querySelector('#r-place').onchange = (e) => { riderForm.place = e.target.value; };
+  container.querySelector('#r-time').onchange  = (e) => { riderForm.time  = e.target.value; };
+  container.querySelector('#r-tog-normal').onclick   = () => { riderForm.priority = false; renderRiders(); };
+  container.querySelector('#r-tog-priority').onclick = () => { riderForm.priority = true;  renderRiders(); };
   container.querySelector('#btn-add-rider').onclick = () => addRider(inputName.value);
-  inputName.onkeydown = (e) => e.key === 'Enter' && addRider(inputName.value);
+  inputName.onkeydown = (e) => { if (e.key === 'Enter') addRider(inputName.value); };
+
+  if (isEditing) {
+    container.querySelector('#btn-cancel-rider').onclick = () => {
+      riderEditIndex = -1;
+      riderFormError = '';
+      riderForm.name = '';
+      renderRiders();
+    };
+  }
+
+  container.querySelectorAll('.btn-edit-rider').forEach(btn => {
+    btn.onclick = () => {
+      const i = parseInt(btn.dataset.index);
+      const r = state.riders[i];
+      riderEditIndex = i;
+      riderFormError = '';
+      riderForm.name     = r.name;
+      riderForm.place    = r.place;
+      riderForm.time     = r.time;
+      riderForm.priority = r.priority;
+      renderRiders();
+      container.querySelector('#r-name').focus();
+    };
+  });
 
   container.querySelectorAll('.btn-del-rider').forEach(btn => {
     btn.onclick = () => {
-      state.riders.splice(parseInt(btn.dataset.index), 1);
+      const i = parseInt(btn.dataset.index);
+      if (riderEditIndex === i) {
+        riderEditIndex = -1;
+        riderFormError = '';
+        riderForm.name = '';
+      }
+      state.riders.splice(i, 1);
       renderRiders();
     };
   });
@@ -328,12 +422,31 @@ function renderRiders() {
 
 function addRider(val) {
   const name = val.trim();
-  if (!name) { alert('名前を入力してください'); return; }
-  if (!state.places.length) { alert('先に集合場所を設定してください'); return; }
-  if (!state.times.length) { alert('先に集合時間を設定してください'); return; }
-  
-  state.riders.push({ ...riderForm, name: name });
-  riderForm.name = ''; // フォームの値をクリア
+  if (!name) {
+    riderFormError = '名前を入力してください';
+    renderRiders();
+    return;
+  }
+  if (!state.places.length) {
+    riderFormError = '先に集合場所を設定してください';
+    renderRiders();
+    return;
+  }
+  if (!state.times.length) {
+    riderFormError = '先に集合時間を設定してください';
+    renderRiders();
+    return;
+  }
+
+  riderFormError = '';
+  const entry = { ...riderForm, name };
+  if (riderEditIndex >= 0) {
+    state.riders[riderEditIndex] = entry;
+    riderEditIndex = -1;
+  } else {
+    state.riders.push(entry);
+  }
+  riderForm.name = '';
   renderRiders();
 }
 
@@ -358,12 +471,17 @@ function renderResult() {
   const { placements, unmatchedRiders, unmatchedDrivers, standbyDrivers } = state.result;
   let html = '';
 
-  placements.forEach(p => {
+  placements.forEach((p, pIdx) => {
+    const totalSeats = p.drivers.reduce((s, d) => s + d.seats, 0);
+    const filledSeats = p.riders.length;
+    const isFull = totalSeats > 0 && filledSeats >= totalSeats;
+
     html += `
       <div class="result-slot">
         <div class="result-slot-head">
           <span class="slot-pill">${p.slot.place}</span>
           <span class="slot-pill">${p.slot.time}</span>
+          ${totalSeats > 0 ? `<span class="seat-fill ${isFull ? 'fill-full' : 'fill-partial'}">${filledSeats}/${totalSeats}席</span>` : ''}
         </div>
         ${p.drivers.length === 0 ? '<div class="no-driver-slot">運転者なし</div>' : `
           <div class="result-slot-body">
@@ -374,17 +492,35 @@ function renderResult() {
                 <span class="driver-seats">${d.seats}名まで</span>
               </div>
             `).join('')}
-            ${p.riders.length ? `
-              <div class="passenger-wrap">
-                ${p.riders.map(r => `<span class="pax-chip ${r.priority ? 'prio' : ''}">${r.name}${r.priority ? ' ★' : ''}</span>`).join('')}
-              </div>
-            ` : '<div style="font-size:13px;color:#bbb;margin-top:6px">乗る人はいません</div>'}
+            <div class="passenger-area drop-zone" data-dest-placement="${pIdx}">
+              ${p.riders.length ? `
+                <div class="passenger-wrap">
+                  ${p.riders.map((r, rIdx) => `
+                    <span class="pax-chip ${r.priority ? 'prio' : ''} draggable-rider"
+                          draggable="true"
+                          data-src-placement="${pIdx}"
+                          data-src-type="rider"
+                          data-rider-idx="${rIdx}">
+                      ${r.name}${r.priority ? ' ★' : ''}
+                    </span>
+                  `).join('')}
+                </div>
+              ` : '<div class="no-riders-hint" data-idle="乗る人はいません" data-drag="ここにドロップ"></div>'}
+            </div>
           </div>
           ${p.overflow.length ? `
             <div class="overflow-bar">
-              <div class="overflow-label">乗り切れない人（${p.overflow.length}人）</div>
+              <div class="overflow-label">乗り切れない人（${p.overflow.length}人）—— 別の車にドラッグして移動できます</div>
               <div class="overflow-chips">
-                ${p.overflow.map(r => `<span class="overflow-chip">${r.name}</span>`).join('')}
+                ${p.overflow.map((r, rIdx) => `
+                  <span class="overflow-chip draggable-rider"
+                        draggable="true"
+                        data-src-placement="${pIdx}"
+                        data-src-type="overflow"
+                        data-rider-idx="${rIdx}">
+                    ${r.name}
+                  </span>
+                `).join('')}
               </div>
             </div>
           ` : ''}
@@ -396,9 +532,17 @@ function renderResult() {
   if (unmatchedRiders && unmatchedRiders.length) {
     html += `
       <div class="unmatched-card">
-        <div class="unmatched-head">未配車（条件不一致の乗る人：${unmatchedRiders.length}人）</div>
+        <div class="unmatched-head">未配車（条件不一致の乗る人：${unmatchedRiders.length}人）—— ドラッグして車に追加できます</div>
         <div class="unmatched-body">
-          ${unmatchedRiders.map(r => `<span class="overflow-chip">${r.name}（${r.place}・${r.time}）</span>`).join('')}
+          ${unmatchedRiders.map((r, rIdx) => `
+            <span class="overflow-chip draggable-rider"
+                  draggable="true"
+                  data-src-placement="-1"
+                  data-src-type="unmatched"
+                  data-rider-idx="${rIdx}">
+              ${r.name}（${r.place}・${r.time}）
+            </span>
+          `).join('')}
         </div>
       </div>
     `;
@@ -433,42 +577,69 @@ function renderResult() {
       <button class="btn btn-success" id="btn-recalc" style="flex:1;justify-content:center">再計算</button>
       <button class="btn" id="btn-copy" style="flex:1;justify-content:center">コピー</button>
     </div>
-    <div id="copy-area" style="display:none">
-      <textarea id="result-text" rows="10" readonly></textarea>
-    </div>
   `;
 
-  // イベントリスナー
   container.querySelector('#btn-recalc').onclick = doCalc;
-  container.querySelector('#btn-copy').onclick = (e) => copyResult(e.target);
+  container.querySelector('#btn-copy').onclick   = copyResult;
+
+  // ドラッグ&ドロップ
+  container.querySelectorAll('.draggable-rider').forEach(el => {
+    el.addEventListener('dragstart', (e) => {
+      dragSource = {
+        placementIndex: parseInt(el.dataset.srcPlacement),
+        type:           el.dataset.srcType,
+        riderIndex:     parseInt(el.dataset.riderIdx)
+      };
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      document.body.classList.add('is-dragging');
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      document.body.classList.remove('is-dragging');
+      container.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+    });
+  });
+
+  container.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', (e) => {
+      if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      document.body.classList.remove('is-dragging');
+      if (!dragSource) return;
+      const destIdx = parseInt(zone.dataset.destPlacement);
+      moveRider(state.result, dragSource, destIdx);
+      dragSource = null;
+      renderResult();
+    });
+  });
 }
 
 function doCalc() {
-  if (!state.drivers.length) { alert('運転者を登録してください'); return; }
-  if (!state.riders.length) { alert('乗る人を登録してください'); return; }
-  
+  if (!state.drivers.length) {
+    showToast('運転者を登録してください', true);
+    return;
+  }
+  if (!state.riders.length) {
+    showToast('乗る人を登録してください', true);
+    return;
+  }
   state.result = calculateSchedule(state);
-  renderResult();
+  switchTab('result');
 }
 
-function copyResult(btn) {
+function copyResult() {
   if (!state.result) return;
-  
   const text = formatResultAsText(state.result);
-  const area = document.getElementById('copy-area');
-  const ta = document.getElementById('result-text');
-  
-  if (area && ta) {
-    area.style.display = 'block';
-    ta.value = text;
-    ta.select();
-  }
-  
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => {
-      const originalText = btn.textContent;
-      btn.textContent = 'コピー完了';
-      setTimeout(() => btn.textContent = originalText, 2000);
-    });
+    navigator.clipboard.writeText(text).then(() => showToast('コピーしました'));
   }
 }

@@ -134,12 +134,104 @@ export function calculateSchedule(state) {
     }
   }
 
+  // 運転手ありスロットの overflow は overflow バーに表示されるため unmatchedRiders から除外する
+  // (driverless スロットの overflow は unmatched として唯一の draggable 手段なので残す)
+  const driverSlotOverflowKeys = new Set();
+  placements.forEach(p => {
+    if (p.drivers.length > 0) {
+      p.overflow.forEach(r => driverSlotOverflowKeys.add(r.id || r.name));
+    }
+  });
+
   return {
     placements,
-    unmatchedRiders: state.riders.filter(r => !assignedRiders.has(r.id || r.name)),
+    unmatchedRiders: state.riders.filter(r => {
+      const key = r.id || r.name;
+      return !assignedRiders.has(key) && !driverSlotOverflowKeys.has(key);
+    }),
     unmatchedDrivers,
     standbyDrivers
   };
+}
+
+/**
+ * 配車結果からドラッグ可能なアイテムのリストを返す
+ * UIの data-src-* 属性と 1:1 で対応する
+ * @returns {{ srcType: 'rider'|'overflow'|'unmatched', srcPlacement: number, riderIndex: number, rider: Object }[]}
+ */
+export function getDraggableItems(result) {
+  const items = [];
+  result.placements.forEach((p, pIdx) => {
+    if (p.drivers.length === 0) return; // 運転手なしスロットは overflow バーも表示されない
+    p.riders.forEach((r, rIdx) => {
+      items.push({ srcType: 'rider',    srcPlacement: pIdx, riderIndex: rIdx, rider: r });
+    });
+    p.overflow.forEach((r, rIdx) => {
+      items.push({ srcType: 'overflow', srcPlacement: pIdx, riderIndex: rIdx, rider: r });
+    });
+  });
+  result.unmatchedRiders.forEach((r, rIdx) => {
+    items.push({ srcType: 'unmatched', srcPlacement: -1, riderIndex: rIdx, rider: r });
+  });
+  return items;
+}
+
+/**
+ * 配車結果から有効なドロップゾーン（運転手がいるスロット）のリストを返す
+ * @returns {{ destPlacement: number, slot: Object }[]}
+ */
+export function getDropZones(result) {
+  return result.placements.flatMap((p, pIdx) =>
+    p.drivers.length > 0 ? [{ destPlacement: pIdx, slot: p.slot }] : []
+  );
+}
+
+/**
+ * 乗客の割り当てを座席数に合わせて再整理する（内部用）
+ * - riders が座席数を超えていれば末尾を overflow へ
+ * - riders に空きがあり overflow がいれば overflow から先頭を riders へ昇格
+ */
+function rebalancePlacement(placement) {
+  const totalSeats = placement.drivers.reduce((s, d) => s + d.seats, 0);
+  const all = [...placement.riders, ...placement.overflow];
+  placement.riders   = all.slice(0, totalSeats);
+  placement.overflow = all.slice(totalSeats);
+}
+
+/**
+ * 計算結果内で乗客を別のスロットへ手動移動する
+ * 移動後、移動元・移動先の両スロットで座席数に応じた再整理を行う
+ * @param {Object} result - calculateSchedule の戻り値（直接変更される）
+ * @param {{ type: 'rider'|'overflow'|'unmatched', placementIndex: number, riderIndex: number }} source
+ * @param {number} destPlacementIndex
+ */
+export function moveRider(result, source, destPlacementIndex) {
+  const { placements, unmatchedRiders } = result;
+
+  // 同じスロットの riders 間は移動しても意味がない
+  if (source.type === 'rider' && source.placementIndex === destPlacementIndex) return result;
+
+  let rider;
+  if (source.type === 'unmatched') {
+    rider = unmatchedRiders.splice(source.riderIndex, 1)[0];
+  } else if (source.type === 'rider') {
+    rider = placements[source.placementIndex].riders.splice(source.riderIndex, 1)[0];
+  } else if (source.type === 'overflow') {
+    rider = placements[source.placementIndex].overflow.splice(source.riderIndex, 1)[0];
+  }
+
+  if (rider !== undefined) {
+    placements[destPlacementIndex].riders.push(rider);
+  }
+
+  // 移動元を再整理（riders が減った場合、overflow から補充される）
+  if (source.type !== 'unmatched' && source.placementIndex !== destPlacementIndex) {
+    rebalancePlacement(placements[source.placementIndex]);
+  }
+  // 移動先を再整理（座席超過の場合、末尾が overflow へ）
+  rebalancePlacement(placements[destPlacementIndex]);
+
+  return result;
 }
 
 function shuffleArray(array) {

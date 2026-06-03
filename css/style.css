@@ -624,3 +624,137 @@ textarea {
   margin-left: 6px;
   border: 1px solid #ddd;
 }
+
+/* 編集ボタン */
+.btn-edit {
+  background: #f8f8f8;
+  color: #555;
+  border-color: #ddd;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.btn-edit:hover {
+  background: #efefef;
+}
+
+/* アクションボタン群（編集・削除） */
+.item-actions {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* 編集中アイテムのハイライト */
+.item-editing {
+  background: #f0f7ff;
+  border-radius: 10px;
+  margin: 0 -4px;
+  padding: 10px 4px;
+}
+
+/* インラインフォームエラー */
+.form-error {
+  font-size: 12px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+/* 座席充填率 */
+.seat-fill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.fill-partial {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.fill-full {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+/* トースト通知 */
+#toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#toast.error {
+  background: #dc2626;
+}
+
+/* ドラッグ&ドロップ */
+.draggable-rider {
+  cursor: grab;
+  user-select: none;
+}
+
+.draggable-rider.dragging {
+  opacity: 0.3;
+}
+
+.passenger-area {
+  margin-top: 6px;
+  border-radius: 8px;
+  min-height: 28px;
+  transition: background 0.12s, outline 0.12s;
+}
+
+.no-riders-hint {
+  font-size: 13px;
+  color: #bbb;
+  padding: 4px 0;
+}
+
+.no-riders-hint::after {
+  content: attr(data-idle);
+}
+
+body.is-dragging .no-riders-hint {
+  color: #93c5fd;
+}
+
+body.is-dragging .no-riders-hint::after {
+  content: attr(data-drag);
+}
+
+body.is-dragging .drop-zone {
+  outline: 2px dashed #93c5fd;
+  min-height: 40px;
+}
+
+body.is-dragging .drop-zone.drag-over {
+  background: #eff6ff;
+  outline-color: #3b82f6;
+}
