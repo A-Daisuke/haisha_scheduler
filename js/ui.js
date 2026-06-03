@@ -3,6 +3,7 @@
  */
 import { state, driverForm, riderForm, saveState, clearAllData } from './state.js';
 import { calculateSchedule, formatResultAsText, moveRider } from './scheduler.js';
+import { parseBulkRiders } from './import.js';
 
 // 編集モード用UI状態
 let driverEditIndex = -1;
@@ -12,6 +13,14 @@ let riderFormError = '';
 
 // ドラッグ&ドロップ用
 let dragSource = null;
+
+// 一括入力用
+let bulkInputText = '';
+let bulkResult = null; // { message: string, hasError: boolean }
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 /**
  * タブを切り替える
@@ -352,6 +361,13 @@ function renderRiders() {
       ${isEditing ? `<button class="btn btn-full" id="btn-cancel-rider" style="margin-top:6px">キャンセル</button>` : ''}
     </div>
     <div class="card">
+      <div class="section-label">一括入力</div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">名前, 場所, 時間（時間は省略可）を1行1人で入力</div>
+      <textarea id="bulk-input" rows="5" placeholder="例：&#10;田中, 駅前, 9:00&#10;鈴木, 公園&#10;佐藤, 駅前, 10:30"></textarea>
+      ${bulkResult ? `<div class="${bulkResult.hasError ? 'bulk-result-error' : 'bulk-result-ok'}">${escHtml(bulkResult.message)}</div>` : ''}
+      <button class="btn btn-primary btn-full" id="btn-bulk-add" style="margin-top:8px">まとめて登録</button>
+    </div>
+    <div class="card">
       <div class="list-header">
         <span class="list-header-title">登録済みの乗る人</span>
         <span class="count-badge">${state.riders.length}人</span>
@@ -418,6 +434,41 @@ function renderRiders() {
       renderRiders();
     };
   });
+
+  // 一括入力
+  const bulkTextarea = container.querySelector('#bulk-input');
+  if (bulkTextarea) {
+    bulkTextarea.value = bulkInputText;
+    bulkTextarea.oninput = (e) => { bulkInputText = e.target.value; };
+  }
+  container.querySelector('#btn-bulk-add').onclick = handleBulkAdd;
+}
+
+function handleBulkAdd() {
+  if (!bulkInputText.trim()) return;
+
+  const { valid, errors } = parseBulkRiders(bulkInputText, state.places, state.times);
+
+  if (valid.length > 0) {
+    state.riders.push(...valid);
+    bulkInputText = '';
+  }
+
+  if (errors.length === 0) {
+    bulkResult = { message: `${valid.length}人を登録しました`, hasError: false };
+  } else {
+    const skipped = errors.map(e => `「${e.line}」→ ${e.reason}`).join(' / ');
+    bulkResult = {
+      message: `${valid.length}人を登録 / ${errors.length}行スキップ: ${skipped}`,
+      hasError: true
+    };
+  }
+
+  // 次のレンダリングでメッセージを消すタイマー
+  clearTimeout(handleBulkAdd._timer);
+  handleBulkAdd._timer = setTimeout(() => { bulkResult = null; renderRiders(); }, 4000);
+
+  renderRiders();
 }
 
 function addRider(val) {

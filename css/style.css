@@ -758,3 +758,25 @@ body.is-dragging .drop-zone.drag-over {
   background: #eff6ff;
   outline-color: #3b82f6;
 }
+
+/* 一括入力 結果表示 */
+.bulk-result-ok {
+  font-size: 12px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+
+.bulk-result-error {
+  font-size: 12px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  word-break: break-all;
+}

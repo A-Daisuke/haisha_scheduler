@@ -1,4 +1,5 @@
 import { calculateSchedule, formatResultAsText, moveRider, getDraggableItems, getDropZones } from './js/scheduler.js';
+import { parseBulkRiders } from './js/import.js';
 
 /**
  * 簡易テストランナー
@@ -1048,6 +1049,151 @@ const suite = {
   }
 };
 
+// ─────────────────────────────────────────
+// parseBulkRiders テスト
+// ─────────────────────────────────────────
+
+const bulkSuite = {
+  // 51. 空文字列 → 空結果
+  testBulkEmpty() {
+    const { valid, errors } = parseBulkRiders('', ['駅'], ['10:00']);
+    assert('Bulk Empty Valid',  valid.length  === 0, '空入力: valid は空');
+    assert('Bulk Empty Errors', errors.length === 0, '空入力: errors も空');
+  },
+
+  // 52. 有効な1行（名前 + 場所 + 時間）
+  testBulkValidFull() {
+    const { valid, errors } = parseBulkRiders('田中, 駅前, 9:00', ['駅前'], ['9:00']);
+    assert('BulkFull Valid Count',  valid.length === 1,        '1件登録');
+    assert('BulkFull Name',         valid[0].name  === '田中', '名前が正しい');
+    assert('BulkFull Place',        valid[0].place === '駅前', '場所が正しい');
+    assert('BulkFull Time',         valid[0].time  === '9:00', '時間が正しい');
+    assert('BulkFull Priority',     valid[0].priority === false, 'priorityはfalse');
+    assert('BulkFull Errors',       errors.length === 0,       'エラーなし');
+  },
+
+  // 53. 時間省略 → times[0] を使用
+  testBulkOmitTime() {
+    const { valid, errors } = parseBulkRiders('鈴木, 公園', ['公園'], ['9:00', '10:00']);
+    assert('BulkNoTime Valid',  valid.length === 1,         '1件登録');
+    assert('BulkNoTime Time',   valid[0].time === '9:00',   '時間省略時は times[0] を使用');
+    assert('BulkNoTime Errors', errors.length === 0,        'エラーなし');
+  },
+
+  // 54. 複数行まとめて登録
+  testBulkMultipleLines() {
+    const text = '田中, 駅前, 9:00\n鈴木, 公園\n佐藤, 駅前, 10:00';
+    const { valid, errors } = parseBulkRiders(text, ['駅前', '公園'], ['9:00', '10:00']);
+    assert('BulkMulti Count',   valid.length  === 3, '3件登録');
+    assert('BulkMulti Errors',  errors.length === 0, 'エラーなし');
+    assert('BulkMulti Names',   valid.map(r => r.name).join(',') === '田中,鈴木,佐藤', '順番が正しい');
+  },
+
+  // 55. 存在しない場所 → エラー
+  testBulkInvalidPlace() {
+    const { valid, errors } = parseBulkRiders('田中, 月面, 9:00', ['駅前'], ['9:00']);
+    assert('BulkBadPlace Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkBadPlace Errors', errors.length === 1, 'エラー1件');
+    assert('BulkBadPlace Reason', errors[0].reason.includes('月面'), '場所名がエラーメッセージに含まれる');
+  },
+
+  // 56. 存在しない時間 → エラー
+  testBulkInvalidTime() {
+    const { valid, errors } = parseBulkRiders('田中, 駅前, 25:00', ['駅前'], ['9:00']);
+    assert('BulkBadTime Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkBadTime Errors', errors.length === 1, 'エラー1件');
+    assert('BulkBadTime Reason', errors[0].reason.includes('25:00'), '時間がエラーメッセージに含まれる');
+  },
+
+  // 57. 名前が空の行 → エラー
+  testBulkMissingName() {
+    const { valid, errors } = parseBulkRiders(', 駅前, 9:00', ['駅前'], ['9:00']);
+    assert('BulkNoName Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkNoName Errors', errors.length === 1, 'エラー1件');
+    assert('BulkNoName Reason', errors[0].reason === '名前が空です', 'エラーメッセージが正しい');
+  },
+
+  // 58. 場所が指定されていない行（名前のみ） → エラー
+  testBulkMissingPlace() {
+    const { valid, errors } = parseBulkRiders('田中', ['駅前'], ['9:00']);
+    assert('BulkNoPlace Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkNoPlace Errors', errors.length === 1, 'エラー1件');
+    assert('BulkNoPlace Reason', errors[0].reason === '場所が指定されていません', 'エラーメッセージが正しい');
+  },
+
+  // 59. 時間省略 + 時間未設定 → エラー
+  testBulkNoTimesConfigured() {
+    const { valid, errors } = parseBulkRiders('田中, 駅前', ['駅前'], []);
+    assert('BulkNoTimes Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkNoTimes Errors', errors.length === 1, 'エラー1件');
+    assert('BulkNoTimes Reason', errors[0].reason === '集合時間が設定されていません', 'エラーメッセージが正しい');
+  },
+
+  // 60. 全角カンマ (、) も区切り文字として使える
+  testBulkFullWidthComma() {
+    const { valid, errors } = parseBulkRiders('田中、駅前、9:00', ['駅前'], ['9:00']);
+    assert('BulkFullWidthComma Valid',  valid.length === 1,        '全角カンマで1件登録');
+    assert('BulkFullWidthComma Name',   valid[0].name === '田中',  '名前が正しい');
+    assert('BulkFullWidthComma Errors', errors.length === 0,       'エラーなし');
+  },
+
+  // 61. 半角・全角混在でも動作する
+  testBulkMixedComma() {
+    const { valid, errors } = parseBulkRiders('田中, 駅前、9:00', ['駅前'], ['9:00']);
+    assert('BulkMixedComma Valid', valid.length === 1,  '混在カンマでも1件登録');
+    assert('BulkMixedComma Time',  valid[0].time === '9:00', '時間が正しい');
+  },
+
+  // 62. 前後の余分な空白はトリムされる
+  testBulkWhitespaceTrimmed() {
+    const { valid, errors } = parseBulkRiders('  田中 ,  駅前 ,  9:00  ', ['駅前'], ['9:00']);
+    assert('BulkTrim Valid', valid.length === 1,        '空白トリムで1件登録');
+    assert('BulkTrim Name',  valid[0].name  === '田中', '名前のトリムが正しい');
+    assert('BulkTrim Place', valid[0].place === '駅前', '場所のトリムが正しい');
+    assert('BulkTrim Time',  valid[0].time  === '9:00', '時間のトリムが正しい');
+  },
+
+  // 63. 空行・空白のみの行はスキップ
+  testBulkSkipBlankLines() {
+    const text = '田中, 駅前, 9:00\n\n   \n鈴木, 駅前, 9:00';
+    const { valid, errors } = parseBulkRiders(text, ['駅前'], ['9:00']);
+    assert('BulkBlankLines Valid',  valid.length  === 2, '空行をスキップして2件登録');
+    assert('BulkBlankLines Errors', errors.length === 0, 'エラーなし');
+  },
+
+  // 64. 4フィールド以上でも最初の3つだけ使用（余剰フィールドは無視）
+  testBulkExtraFields() {
+    const { valid, errors } = parseBulkRiders('田中, 駅前, 9:00, 余分な情報', ['駅前'], ['9:00']);
+    assert('BulkExtraFields Valid',  valid.length === 1,        '余分フィールドを無視して1件登録');
+    assert('BulkExtraFields Name',   valid[0].name  === '田中', '名前が正しい');
+    assert('BulkExtraFields Errors', errors.length === 0,       'エラーなし');
+  },
+
+  // 65. 有効行と無効行が混在 → 有効分だけ登録
+  testBulkMixedValidInvalid() {
+    const text = [
+      '田中, 駅前, 9:00',
+      '鈴木, 月面, 9:00',  // 無効: 場所なし
+      '佐藤, 駅前',         // 有効: 時間省略
+      '花子, 駅前, 99:00'  // 無効: 時間なし
+    ].join('\n');
+    const { valid, errors } = parseBulkRiders(text, ['駅前'], ['9:00']);
+    assert('BulkMixed Valid Count',  valid.length  === 2, '有効2件のみ登録');
+    assert('BulkMixed Error Count',  errors.length === 2, 'エラー2件');
+    assert('BulkMixed Valid Names',  valid.map(r => r.name).join(',') === '田中,佐藤', '田中と佐藤が登録');
+  },
+
+  // 66. 場所も時間も設定されていない状態で全行エラー
+  testBulkNoConfigAtAll() {
+    const text = '田中, 駅前, 9:00\n鈴木, 公園';
+    const { valid, errors } = parseBulkRiders(text, [], []);
+    assert('BulkNoConfig Valid',  valid.length  === 0, 'valid は空');
+    assert('BulkNoConfig Errors', errors.length === 2, '全行エラー');
+  }
+};
+
 console.log('🚀 Starting Validation Tests...');
 Object.values(suite).forEach(test => test());
+console.log('\n🚀 Starting Bulk Import Tests...');
+Object.values(bulkSuite).forEach(test => test());
 console.log('✨ All tests passed successfully!');
